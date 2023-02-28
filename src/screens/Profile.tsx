@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { TouchableOpacity } from "react-native";
+import { TouchableOpacity, Alert } from "react-native";
 import {
   Center,
   ScrollView,
@@ -7,7 +7,10 @@ import {
   VStack,
   Text,
   Heading,
+  useToast,
 } from "native-base";
+import * as ImagePicker from "expo-image-picker";
+import * as FileSystem from "expo-file-system";
 
 import ScreenHeader from "@components/ScreenHeader";
 import UserPhote from "@components/UserPhote";
@@ -18,6 +21,47 @@ const PHOTO_SIZE = 33;
 
 export default function Profile() {
   const [photoIsLoading, setPhotoIsLoading] = useState(false);
+  const [userPhoto, setUserPhoto] = useState(
+    "https://github.com/luanreimbeerg.png"
+  );
+
+  const toast = useToast();
+
+  async function handleUserPhotoSelect() {
+    setPhotoIsLoading(true);
+    try {
+      const photeSelected = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 4],
+        quality: 1,
+      });
+
+      if (photeSelected.canceled) {
+        return;
+      }
+
+      if (photeSelected.assets[0].uri) {
+        const photoInfo = await FileSystem.getInfoAsync(
+          photeSelected.assets[0].uri
+        );
+
+        if (photoInfo.size && photoInfo.size / 1024 / 1024 > 5) {
+          return toast.show({
+            title: "Essa imagem é muito grande. Escolha uma de até 5MB",
+            placement: "top",
+            bgColor: "red.500",
+          });
+        }
+
+        setUserPhoto(photeSelected.assets[0].uri);
+      }
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setPhotoIsLoading(false);
+    }
+  }
 
   return (
     <VStack flex={1}>
@@ -34,12 +78,9 @@ export default function Profile() {
               endColor="gray.400"
             />
           ) : (
-            <UserPhote
-              source={{ uri: "https://github.com/luanreimbeerg.png" }}
-              size={PHOTO_SIZE}
-            />
+            <UserPhote source={{ uri: userPhoto }} size={PHOTO_SIZE} />
           )}
-          <TouchableOpacity>
+          <TouchableOpacity onPress={handleUserPhotoSelect}>
             <Text
               color="green.500"
               fontWeight="bold"
@@ -70,7 +111,6 @@ export default function Profile() {
             bg="gray.600"
             secureTextEntry
           />
-
           <Button title="Atualizar" mt={4} />
         </VStack>
       </ScrollView>
